@@ -32,7 +32,6 @@ jobs:
 
       - name: Tipos
         run: mypy
-        continue-on-error: true
 
       - name: Testes
         run: pytest --cov=lombada --cov-report=term-missing

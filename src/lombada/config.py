@@ -230,7 +230,9 @@ def _parse_time(value: Any) -> time:
     if len(parts) not in (2, 3):
         raise ConfigError(f"horario invalido: {value!r} (esperado HH:MM)")
     try:
-        return time(*(int(p) for p in parts))
+        numbers = [int(part) for part in parts]
+        second = numbers[2] if len(numbers) == 3 else 0
+        return time(numbers[0], numbers[1], second)
     except ValueError as exc:
         raise ConfigError(f"horario invalido: {value!r}") from exc
 
