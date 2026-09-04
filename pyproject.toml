@@ -24,12 +24,26 @@ dependencies = [
 # so com numpy e PyYAML. Cada peca pesada e um extra, para que a bancada e a
 # CI nao precisem de GPU nem de download de modelo.
 video = ["opencv-python-headless>=4.9,<5"]
-detect = ["ultralytics>=8.3"]
-# O pin de opencv aqui NAO e redundante: o `rapidocr` declara
-# `opencv-python-headless` sem versao, e foi por essa porta que o OpenCV 5.0
-# entrou num parque de cameras e quebrou a decodificacao RTSP. Instalar o
-# rapidocr solto reabre o buraco.
-lpr = ["rapidocr>=3.0", "onnxruntime>=1.18", "opencv-python-headless>=4.9,<5"]
+
+# ATENCAO AO NOME DA DISTRIBUICAO. Existem DUAS que instalam o modulo `cv2`:
+# `opencv-python` e `opencv-python-headless`. Pinar uma NAO restringe a outra
+# -- para o pip sao pacotes sem relacao nenhuma.
+#
+# Foi assim que o OpenCV 5.0 entrou aqui em 2026-09-04, apesar de o extra
+# `video` ja pinar `<5`: tanto o `ultralytics` (`opencv-python>=4.7.0`) quanto
+# o `rapidocr` (`opencv_python>=4.5.1.48`) declaram a variante NAO-headless,
+# sem teto de versao. O mesmo caminho ja tinha derrubado a decodificacao RTSP
+# de um parque de cameras em julho.
+#
+# Por isso todo extra que puxa esses pacotes repete o pin na variante certa.
+# `tests/test_ambiente.py` guarda a regra.
+detect = ["ultralytics>=8.3", "opencv-python>=4.9,<5"]
+lpr = [
+    "rapidocr>=3.0",
+    "onnxruntime>=1.18",
+    "opencv-python>=4.9,<5",
+    "opencv-python-headless>=4.9,<5",
+]
 lpr-trocr = ["transformers>=4.44", "torch>=2.2", "pillow>=10.0"]
 lpr-fastplate = ["fast-plate-ocr>=1.0", "open-image-models>=0.3"]
 gpu = ["onnxruntime-gpu>=1.18"]

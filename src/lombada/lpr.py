@@ -188,7 +188,14 @@ class TrOcrEngine:
 
             logger.info("carregando TrOCR %s", self.config.trocr_model)
             self._processor = TrOCRProcessor.from_pretrained(self.config.trocr_model)
-            model = VisionEncoderDecoderModel.from_pretrained(self.config.trocr_model)
+            # Anotado como Any de proposito: em transformers 5.x o `.to()` e
+            # decorado de um jeito que o mypy resolve como `_Wrapped` e passa a
+            # exigir um `PreTrainedModel` onde vai a string do device. E falso
+            # positivo, e so aparece onde o transformers ESTA instalado -- a CI
+            # nao instala os extras pesados, entao isto passaria batido la.
+            model: Any = VisionEncoderDecoderModel.from_pretrained(
+                self.config.trocr_model
+            )
             device = self.config.device if torch.cuda.is_available() else "cpu"
             self._model = model.to(device).eval()
         return self._model, self._processor
