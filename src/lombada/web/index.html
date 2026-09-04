@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lombada eletrônica — cadastro e teste</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #14181d;
+    --muted: #5d6773;
+    --line: #dfe3e8;
+    --accent: #1d6fe0;
+    --ok: #157347;
+    --warn: #9a6400;
+    --warn-bg: #fff6e0;
+    --bad: #b3261e;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --card: #1c2027; --ink: #e8ecf1; --muted: #9aa5b1;
+      --line: #2c323b; --accent: #6aa6ff; --ok: #58c98a; --warn: #e0b055;
+      --warn-bg: #322a15; --bad: #ff8a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 18px 64px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; }
+  header p { color: var(--muted); margin: 0 0 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 18px;
+  }
+  .card > h2 {
+    font-size: 15px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0 0 14px;
+  }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--bg); color: var(--ink); font: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .full { grid-column: 1 / -1; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button {
+    padding: 9px 16px; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  .muted { color: var(--muted); }
+  .pill {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 12px; border: 1px solid var(--line);
+  }
+  .pill.on { color: var(--ok); border-color: currentColor; }
+  .pill.off { color: var(--muted); }
+  .pill.viol { color: var(--bad); border-color: currentColor; }
+  .aviso {
+    background: var(--warn-bg); border-left: 3px solid var(--warn);
+    padding: 9px 12px; border-radius: 6px; margin-top: 8px; font-size: 14px;
+  }
+  .erro { color: var(--bad); margin-top: 10px; }
+  .stage { position: relative; display: inline-block; max-width: 100%; }
+  .stage img { display: block; max-width: 100%; border-radius: 8px; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+  .hint { font-size: 13px; color: var(--muted); margin: 10px 0; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .kv div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .kv dt { font-size: 12px; color: var(--muted); }
+  .kv dd { margin: 2px 0 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Lombada eletrônica</h1>
+    <p>Cadastro de câmera, sondagem do fluxo RTSP, calibração da base e métricas.</p>
+  </header>
+
+  <!-- ------------------------------------------------ cadastro -->
+  <section class="card">
+    <h2>1. Cadastrar câmera</h2>
+    <form id="form">
+      <div class="grid">
+        <div class="full">
+          <label for="rtsp_url">URL RTSP (com usuário e senha)</label>
+          <input id="rtsp_url" name="rtsp_url" required
+                 placeholder="rtsp://admin:senha@10.0.0.51:554/Streaming/Channels/101">
+        </div>
+        <div class="full">
+          <label for="substream_url">Substream (opcional — usado para o gatilho)</label>
+          <input id="substream_url" name="substream_url"
+                 placeholder="rtsp://admin:senha@10.0.0.51:554/Streaming/Channels/102">
+        </div>
+        <div><label for="name">Nome</label>
+          <input id="name" name="name" placeholder="LOMBADA 01"></div>
+        <div><label for="limit_kmh">Limite (km/h)</label>
+          <input id="limit_kmh" name="limit_kmh" type="number" step="1" value="30"></div>
+        <div><label for="distance_m">Base — distância (m)</label>
+          <input id="distance_m" name="distance_m" type="number" step="0.1" value="8"></div>
+        <div><label for="capture_fps">Captura (fps)</label>
+          <input id="capture_fps" name="capture_fps" type="number" step="1" value="12"></div>
+      </div>
+      <div class="row">
+        <button type="button" id="btn-probe">Testar conexão</button>
+        <button type="submit" class="primary">Salvar câmera</button>
+      </div>
+      <p class="erro" id="form-erro" hidden></p>
+    </form>
+
+    <div id="probe" hidden style="margin-top:18px">
+      <div class="kv" id="probe-kv"></div>
+      <div id="probe-avisos"></div>
+      <div id="probe-amostras" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------ lista -->
+  <section class="card">
+    <h2>2. Câmeras cadastradas</h2>
+    <div class="scroll"><table>
+      <thead><tr>
+        <th>Câmera</th><th>RTSP</th><th class="num">Limite</th>
+        <th class="num">Base</th><th>Estado</th><th></th>
+      </tr></thead>
+      <tbody id="lista"><tr><td colspan="6" class="muted">carregando…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <!-- ------------------------------------------------ calibração -->
+  <section class="card" id="calib" hidden>
+    <h2>3. Calibrar a base — <span id="calib-nome"></span></h2>
+    <p class="hint">
+      Clique nos <strong>4 cantos</strong> da base, nesta ordem:
+      <strong>entrada-esquerda → entrada-direita → saída-direita → saída-esquerda</strong>.
+      A distância entre as duas linhas precisa ser a que você mediu com trena
+      (<span id="calib-dist"></span> m). Errar essa medida vira erro proporcional
+      em toda leitura desta câmera.
+    </p>
+    <div class="stage" id="stage">
+      <img id="frame" alt="quadro da câmera">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="row">
+      <button type="button" id="btn-undo">Desfazer ponto</button>
+      <button type="button" id="btn-clear">Limpar</button>
+      <button type="button" class="primary" id="btn-save-calib" disabled>
+        Salvar calibração
+      </button>
+      <button type="button" id="btn-close-calib">Fechar</button>
+    </div>
+    <p class="erro" id="calib-erro" hidden></p>
+  </section>
+
+  <!-- ------------------------------------------------ métricas -->
+  <section class="card">
+    <h2>4. Métricas (últimos 7 dias)</h2>
+    <div class="scroll"><table>
+      <thead><tr>
+        <th>Câmera</th><th class="num">Passagens</th><th class="num">Acima do limite</th>
+        <th class="num">Média</th><th class="num">Máxima</th><th class="num">Placa lida</th>
+      </tr></thead>
+      <tbody id="stats"><tr><td colspan="6" class="muted">sem dados ainda</td></tr></tbody>
+    </table></div>
+
+    <h2 style="margin-top:22px">Últimas passagens</h2>
+    <div class="scroll"><table>
+      <thead><tr>
+        <th>Quando</th><th>Câmera</th><th class="num">Medida</th>
+        <th class="num">Considerada</th><th>Placa</th><th class="num">R²</th><th></th>
+      </tr></thead>
+      <tbody id="passagens"><tr><td colspan="7" class="muted">
+        nenhuma passagem — rode <code>lombada run</code> com uma câmera calibrada
+      </td></tr></tbody>
+    </table></div>
+    <div class="row"><button type="button" id="btn-metrics">Atualizar</button></div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (url, options) => {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.erro || `HTTP ${res.status}`);
+  return data;
+};
+const num = (v, d = 1) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
+
+function formData() {
+  const get = (id) => $(id).value.trim();
+  return {
+    rtsp_url: get("rtsp_url"),
+    substream_url: get("substream_url"),
+    name: get("name"),
+    limit_kmh: get("limit_kmh"),
+    distance_m: get("distance_m"),
+    capture_fps: get("capture_fps"),
+  };
+}
+
+function showError(el, message) {
+  el.textContent = message || "";
+  el.hidden = !message;
+}
+
+/* ---------------------------------------------------------- sondagem */
+$("btn-probe").addEventListener("click", async () => {
+  const btn = $("btn-probe");
+  showError($("form-erro"), "");
+  btn.disabled = true;
+  btn.textContent = "Testando…";
+  try {
+    const r = await api("/api/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData()),
+    });
+    renderProbe(r);
+  } catch (e) {
+    showError($("form-erro"), e.message);
+    $("probe").hidden = true;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Testar conexão";
+  }
+});
+
+function renderProbe(r) {
+  $("probe").hidden = false;
+  if (!r.ok) {
+    $("probe-kv").innerHTML =
+      `<div><dt>Resultado</dt><dd style="color:var(--bad);font-size:15px">${r.erro}</dd></div>`;
+    $("probe-avisos").innerHTML = "";
+    $("probe-amostras").innerHTML = "";
+    return;
+  }
+  const cells = [
+    ["Resolução", `${r.width}×${r.height}`],
+    ["Megapixels", num(r.megapixels, 2)],
+    ["FPS medido", num(r.fps_medido)],
+    ["FPS declarado", r.fps_declarado ? num(r.fps_declarado) : "—"],
+    ["1º quadro", `${num(r.primeiro_quadro_s, 2)} s`],
+    ["Codec", r.codec || "—"],
+  ];
+  $("probe-kv").innerHTML = cells
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)
+    .join("");
+  $("probe-avisos").innerHTML = (r.avisos || [])
+    .map((a) => `<div class="aviso">${a}</div>`)
+    .join("");
+
+  if (r.amostras) {
+    const linhas = Object.entries(r.amostras)
+      .map(([kmh, n]) => {
+        const cor = n < 4 ? "var(--bad)" : n < 6 ? "var(--warn)" : "var(--ok)";
+        return `<tr><td>${kmh} km/h</td>
+                <td class="num" style="color:${cor}">${n}</td>
+                <td class="muted">${n < 4 ? "recusa a passagem" : n < 6 ? "no limite" : "ok"}</td></tr>`;
+      })
+      .join("");
+    $("probe-amostras").innerHTML = `
+      <p class="hint">Amostras dentro da base ao FPS medido — abaixo de 4 o ajuste
+      não se sustenta e a passagem é recusada, então a câmera deixa de ver os
+      carros rápidos sem gerar erro nenhum.</p>
+      <table><thead><tr><th>Velocidade</th><th class="num">Amostras</th><th></th></tr></thead>
+      <tbody>${linhas}</tbody></table>`;
+  }
+}
+
+/* ---------------------------------------------------------- cadastro */
+$("form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  showError($("form-erro"), "");
+  try {
+    await api("/api/cameras", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData()),
+    });
+    $("form").reset();
+    $("limit_kmh").value = 30;
+    $("distance_m").value = 8;
+    $("capture_fps").value = 12;
+    await loadCameras();
+  } catch (e) {
+    showError($("form-erro"), e.message);
+  }
+});
+
+async function loadCameras() {
+  const tbody = $("lista");
+  try {
+    const cams = await api("/api/cameras");
+    if (!cams.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="muted">nenhuma câmera cadastrada</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = cams
+      .map(
+        (c) => `<tr>
+          <td><strong>${c.name}</strong><br><span class="muted">${c.id}</span></td>
+          <td class="muted">${c.rtsp_url}</td>
+          <td class="num">${num(c.limit_kmh, 0)} km/h</td>
+          <td class="num">${num(c.distance_m)} m</td>
+          <td>${
+            c.calibrada
+              ? '<span class="pill on">calibrada</span>'
+              : '<span class="pill off">sem calibração</span>'
+          }</td>
+          <td style="white-space:nowrap">
+            <button data-calib="${c.id}">Calibrar</button>
+            <button class="danger" data-del="${c.id}">Remover</button>
+          </td>
+        </tr>`
+      )
+      .join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="erro">${e.message}</td></tr>`;
+  }
+}
+
+$("lista").addEventListener("click", async (ev) => {
+  const del = ev.target.dataset.del;
+  const cal = ev.target.dataset.calib;
+  if (del) {
+    if (!confirm(`Remover a câmera ${del}?`)) return;
+    await api(`/api/cameras/${encodeURIComponent(del)}`, { method: "DELETE" });
+    await loadCameras();
+  } else if (cal) {
+    openCalibration(cal);
+  }
+});
+
+/* ---------------------------------------------------------- calibração */
+let pontos = [];
+let cameraAtual = null;
+
+async function openCalibration(id) {
+  const cams = await api("/api/cameras");
+  const cam = cams.find((c) => c.id === id);
+  if (!cam) return;
+
+  cameraAtual = cam;
+  pontos = cam.image_points ? cam.image_points.slice() : [];
+  $("calib").hidden = false;
+  $("calib-nome").textContent = cam.name;
+  $("calib-dist").textContent = num(cam.distance_m);
+  showError($("calib-erro"), "");
+  $("frame").src = `/api/cameras/${encodeURIComponent(id)}/snapshot?t=${Date.now()}`;
+  $("calib").scrollIntoView({ behavior: "smooth" });
+}
+
+$("frame").addEventListener("load", draw);
+$("frame").addEventListener("error", () =>
+  showError($("calib-erro"), "não consegui pegar um quadro dessa câmera — teste a conexão antes")
+);
+
+$("canvas").addEventListener("click", (ev) => {
+  const img = $("frame");
+  if (!img.naturalWidth || pontos.length >= 4) return;
+  const rect = img.getBoundingClientRect();
+  // Converte o clique na imagem EXIBIDA para pixel do quadro original: a
+  // homografia é calculada nas coordenadas nativas da câmera, não nas da tela.
+  const x = ((ev.clientX - rect.left) / rect.width) * img.naturalWidth;
+  const y = ((ev.clientY - rect.top) / rect.height) * img.naturalHeight;
+  pontos.push([Math.round(x), Math.round(y)]);
+  draw();
+});
+
+function draw() {
+  const img = $("frame");
+  const cv = $("canvas");
+  if (!img.naturalWidth) return;
+  cv.width = img.naturalWidth;
+  cv.height = img.naturalHeight;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  const escala = Math.max(1, cv.width / 900);
+  if (pontos.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(pontos[0][0], pontos[0][1]);
+    pontos.slice(1).forEach((p) => ctx.lineTo(p[0], p[1]));
+    if (pontos.length === 4) ctx.closePath();
+    ctx.strokeStyle = pontos.length === 4 ? "#2ecc71" : "#f1c40f";
+    ctx.lineWidth = 3 * escala;
+    ctx.stroke();
+  }
+  const rotulos = ["1 entrada-esq", "2 entrada-dir", "3 saída-dir", "4 saída-esq"];
+  pontos.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], 7 * escala, 0, Math.PI * 2);
+    ctx.fillStyle = "#e74c3c";
+    ctx.fill();
+    ctx.font = `${14 * escala}px system-ui, sans-serif`;
+    ctx.lineWidth = 4 * escala;
+    ctx.strokeStyle = "rgba(0,0,0,.75)";
+    ctx.strokeText(rotulos[i], p[0] + 11 * escala, p[1] - 9 * escala);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(rotulos[i], p[0] + 11 * escala, p[1] - 9 * escala);
+  });
+  $("btn-save-calib").disabled = pontos.length !== 4;
+}
+
+$("btn-undo").addEventListener("click", () => { pontos.pop(); draw(); });
+$("btn-clear").addEventListener("click", () => { pontos = []; draw(); });
+$("btn-close-calib").addEventListener("click", () => { $("calib").hidden = true; });
+
+$("btn-save-calib").addEventListener("click", async () => {
+  showError($("calib-erro"), "");
+  try {
+    await api(`/api/cameras/${encodeURIComponent(cameraAtual.id)}/calibrate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_points: pontos }),
+    });
+    $("calib").hidden = true;
+    await loadCameras();
+  } catch (e) {
+    showError($("calib-erro"), e.message);
+  }
+});
+
+/* ---------------------------------------------------------- métricas */
+async function loadMetrics() {
+  try {
+    const m = await api("/api/metrics");
+    const stats = $("stats");
+    stats.innerHTML = m.por_camera.length
+      ? m.por_camera
+          .map((s) => {
+            const taxa = s.total ? (100 * (s.with_plate || 0)) / s.total : 0;
+            return `<tr><td>${s.camera_id}</td>
+              <td class="num">${s.total}</td>
+              <td class="num">${s.violations || 0}</td>
+              <td class="num">${num(s.avg_kmh)}</td>
+              <td class="num">${num(s.max_kmh)}</td>
+              <td class="num">${taxa.toFixed(0)}%</td></tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="6" class="muted">sem passagens registradas</td></tr>`;
+
+    const tb = $("passagens");
+    tb.innerHTML = m.passagens.length
+      ? m.passagens
+          .map(
+            (p) => `<tr>
+              <td class="muted">${String(p.captured_at).slice(0, 19).replace("T", " ")}</td>
+              <td>${p.camera_id}</td>
+              <td class="num">${num(p.speed_kmh)}</td>
+              <td class="num">${num(p.considered_kmh)}</td>
+              <td>${p.placa || "—"}</td>
+              <td class="num">${p.qualidade && p.qualidade.r2 ? num(p.qualidade.r2, 3) : "—"}</td>
+              <td>${p.is_violation ? '<span class="pill viol">acima</span>' : ""}</td>
+            </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="7" class="muted">nenhuma passagem ainda</td></tr>`;
+  } catch (e) {
+    $("stats").innerHTML = `<tr><td colspan="6" class="erro">${e.message}</td></tr>`;
+  }
+}
+
+$("btn-metrics").addEventListener("click", loadMetrics);
+loadCameras();
+loadMetrics();
+</script>
+</body>
+</html>

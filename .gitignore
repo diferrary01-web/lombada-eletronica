@@ -1,6 +1,7 @@
 # Segredos e configuracao real (o exemplo, sim, e versionado)
 .env
-config/cameras.yaml
+config/*.yaml
+!config/cameras.example.yaml
 
 # Dados operacionais: banco, evidencias, capturas de calibracao
 data/

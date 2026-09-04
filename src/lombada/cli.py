@@ -75,6 +75,13 @@ def _parser() -> argparse.ArgumentParser:
     project.add_argument("y", type=float)
     project.set_defaults(handler=cmd_project)
 
+    web = sub.add_parser("web", help="sobe a tela local de cadastro e teste")
+    _add_config(web)
+    web.add_argument("--host", default="127.0.0.1")
+    web.add_argument("--port", type=int, default=8000)
+    web.add_argument("--db", type=Path, default=None)
+    web.set_defaults(handler=cmd_web)
+
     bench = sub.add_parser(
         "bench", help="avalia o ensemble contra recortes reais com gabarito"
     )
@@ -202,6 +209,38 @@ def cmd_project(args: argparse.Namespace) -> int:
     print(f"pixel ({args.x:.1f}, {args.y:.1f}) -> X={world_x:+.2f} m, Y={world_y:+.2f} m")
     if not -1.0 <= world_y <= camera.base.distance_m + 1.0:
         print("aviso: o ponto cai fora da base de medicao")
+    return 0
+
+
+def cmd_web(args: argparse.Namespace) -> int:
+    from .registry import CameraRegistry
+    from .webapp import create_server
+
+    db_path = args.db
+    if db_path is None:
+        document = CameraRegistry(path=args.config).load()
+        storage = document.get("storage") or {}
+        db_path = Path(str(storage.get("database_path", "data/lombada.db")))
+
+    server = create_server(
+        host=args.host, port=args.port, config_path=args.config, db_path=db_path
+    )
+    if args.host not in ("127.0.0.1", "localhost", "::1"):
+        print(
+            "AVISO: escutando fora do localhost. Esta tela mostra e grava URLs "
+            "RTSP com senha -- qualquer um que alcance esta porta le as "
+            "credenciais das cameras."
+        )
+    print(f"tela:    http://{args.host}:{args.port}/")
+    print(f"cameras: {args.config}")
+    print(f"banco:   {db_path}")
+    print("ctrl+c para parar")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nencerrando")
+    finally:
+        server.server_close()
     return 0
 
 

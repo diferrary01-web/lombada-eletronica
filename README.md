@@ -86,6 +86,39 @@ pip install -e ".[video,detect,lpr,lpr-trocr,gpu]"
 
 ## Uso
 
+### Pelo navegador (mais rápido para começar)
+
+```bash
+lombada web                   # abre em http://127.0.0.1:8000
+```
+
+Cadastra a câmera, sonda o RTSP, calibra a base clicando nos 4 cantos do quadro
+e mostra as métricas. A tela **edita o `cameras.yaml` de verdade** — não um
+cadastro paralelo —, então o que você configura ali é exatamente o que
+`lombada check` valida e `lombada run` executa.
+
+Três coisas que ela faz e o terminal não faz bem:
+
+- **Sonda o fluxo medindo, não perguntando.** Reporta a resolução do quadro
+  decodificado e o FPS cronometrado, ao lado do que a câmera *declara*. É como
+  se pega o `subtype=1` de Dahua que devolve o fluxo principal em 5 MP, e a
+  câmera que anuncia 25 fps entregando 6.
+- **Diz se dá para medir a velocidade que te interessa.** Calcula quantas
+  amostras cabem na base a 30, 40, 60 e 80 km/h com o FPS real. Abaixo de 4 o
+  ajuste não se sustenta e a passagem é recusada — a câmera para de ver os
+  carros rápidos sem gerar erro nenhum.
+- **Calibra por clique.** Marcar os 4 cantos na imagem é bem menos sujeito a
+  erro do que digitar oito números num YAML.
+
+A câmera nasce **desabilitada** e só liga quando a calibração é salva: sem os
+4 pontos não existe medida, e deixá-la ligada daria a impressão de um sistema
+funcionando que na verdade não mede nada.
+
+O servidor escuta em `127.0.0.1` de propósito — a tela grava e exibe URLs RTSP
+com senha. Para expor em outra interface é preciso passar `--host`, e ele avisa.
+
+### Pelo terminal
+
 ```bash
 cp config/cameras.example.yaml config/cameras.yaml
 cp .env.example .env          # senhas das câmeras ficam aqui, fora do git
@@ -133,7 +166,10 @@ lpr.py        ensemble de motores de OCR + votação posicional (quadros x motor
 evidence.py   quadro anotado, recorte da placa, manifesto com SHA-256
 storage.py    SQLite, consultas e retenção
 pipeline.py   orquestração por câmera
-cli.py        check | run | snapshot | project | report | purge
+cli.py        web | check | run | snapshot | project | bench | report | purge
+probe.py      sondagem do RTSP: mede o que a camera entrega de fato
+registry.py   cadastro de cameras gravado no proprio cameras.yaml
+webapp.py     servidor local (so stdlib) da tela de cadastro e teste
 ```
 
 O laço quente só detecta e rastreia. **OCR não roda dentro do laço**: ele é o erro
