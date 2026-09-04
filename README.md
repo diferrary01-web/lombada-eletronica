@@ -79,10 +79,17 @@ Com GPU NVIDIA, some `gpu` (troca `onnxruntime` por `onnxruntime-gpu`):
 pip install -e ".[video,detect,lpr,lpr-trocr,gpu]"
 ```
 
-> **Não instale o `rapidocr` solto.** Ele declara `opencv-python-headless` sem
-> fixar versão, e foi por essa porta que o OpenCV 5.0 entrou num parque de
-> câmeras e quebrou a decodificação RTSP inteira. O extra `[lpr]` repete o pin
-> `<5` de propósito.
+> **Cuidado com o OpenCV 5.** Existem duas distribuições que instalam o módulo
+> `cv2` — `opencv-python` e `opencv-python-headless` — e, para o pip, elas não
+> têm relação nenhuma: **pinar uma não restringe a outra**. `ultralytics` e
+> `rapidocr` dependem da variante *não-headless*, sem teto de versão, e é por
+> ali que a 5.x entra e quebra a decodificação RTSP.
+>
+> Todos os extras que arrastam esses pacotes repetem o pin `<5` na variante
+> certa, e [`tests/test_ambiente.py`](tests/test_ambiente.py) guarda a regra —
+> lendo o próprio `pyproject.toml` e conferindo o `cv2` carregado. Se você
+> instalar `ultralytics` ou `rapidocr` soltos, fora dos extras, o buraco
+> reabre.
 
 ## Uso
 
