@@ -32,10 +32,17 @@ PLACEHOLDER_POINTS: list[list[float]] = [
     [300.0, 400.0],
 ]
 
+# O detector e o LPR entram LIGADOS de proposito. A versao anterior gravava
+# `backend: stub` e `lpr.enabled: false`, e o resultado era o pior tipo de
+# defeito: quem cadastrava a camera pela tela recebia um sistema que subia,
+# abria o fluxo, nao acusava erro algum e nao media absolutamente nada. Um
+# `run` de 75 s numa avenida movimentada devolveu zero passagens por causa
+# disso, e a causa passou despercebida porque nada no log diz "o detector
+# escolhido nao detecta".
 DEFAULT_SECTIONS: dict[str, Any] = {
     "site": {"name": "Local de teste", "timezone": "America/Sao_Paulo"},
-    "detector": {"backend": "stub"},
-    "lpr": {"enabled": False},
+    "detector": {"backend": "ultralytics"},
+    "lpr": {"enabled": True, "engines": ["rapidocr"]},
     "storage": {
         "database_path": "data/lombada.db",
         "evidence_dir": "data/evidence",

@@ -211,3 +211,27 @@ def test_registry_sem_arquivo_comeca_vazio(registry):
 )
 def test_slugify(entrada, esperado):
     assert slugify(entrada) == esperado
+
+
+# -- padroes que a tela grava ---------------------------------------------
+
+
+def test_config_nova_ja_nasce_medindo(registry):
+    """Regressao: os padroes gravavam `stub` + LPR desligado.
+
+    O efeito era um sistema que subia, abria a camera, nao acusava erro e nao
+    media nada -- 75 s numa avenida movimentada deram zero passagens, e nada
+    no log apontava a causa. Padrao ruim aqui vira falha silenciosa la.
+    """
+    registry.save(CameraDraft.from_payload(payload()))
+    documento = yaml.safe_load(registry.path.read_text(encoding="utf-8"))
+
+    assert documento["detector"]["backend"] != "stub"
+    assert documento["lpr"]["enabled"] is True
+
+
+def test_config_nova_grava_tambem_quem_nao_infringiu(registry):
+    """A tela e de teste e diagnostico: passagem dentro do limite tambem conta."""
+    registry.save(CameraDraft.from_payload(payload()))
+    documento = yaml.safe_load(registry.path.read_text(encoding="utf-8"))
+    assert documento["storage"]["store_non_violations"] is True

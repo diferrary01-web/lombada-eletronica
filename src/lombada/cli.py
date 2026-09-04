@@ -121,6 +121,14 @@ def cmd_check(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     print(f"local: {config.site_name} ({config.timezone})")
     print(f"detector: {config.detector.backend} / {config.detector.model}")
+    if config.detector.backend == "stub":
+        # Sem isto o `stub` e invisivel: o sistema sobe, abre o fluxo, nao
+        # registra erro e nao mede nada. Ja aconteceu.
+        print(
+            "  *** ATENCAO: o backend `stub` NAO DETECTA NADA. O pipeline vai\n"
+            "      rodar, abrir a camera, nao acusar erro e nao medir uma unica\n"
+            "      passagem. Troque para `ultralytics` para medir de verdade."
+        )
     if config.lpr.enabled:
         motores = ", ".join(
             f"{name} (peso {config.lpr.weight_of(name):.2f})"
