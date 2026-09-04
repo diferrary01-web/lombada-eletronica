@@ -106,6 +106,9 @@ class EvidenceWriter:
                 {
                     "texto": passage.plate.text,
                     "confianca": round(passage.plate.confidence, 4),
+                    # Quais motores leram: uma placa lida por dois motores
+                    # independentes se defende melhor que uma lida por um.
+                    "motores": passage.plate.source,
                 }
                 if passage.plate
                 else None

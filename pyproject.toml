@@ -23,9 +23,15 @@ dependencies = [
 # O nucleo (geometria, velocidade, votacao de placa, configuracao, banco) roda
 # so com numpy e PyYAML. Cada peca pesada e um extra, para que a bancada e a
 # CI nao precisem de GPU nem de download de modelo.
-video = ["opencv-python-headless>=4.9"]
+video = ["opencv-python-headless>=4.9,<5"]
 detect = ["ultralytics>=8.3"]
-lpr = ["fast-plate-ocr>=1.0", "open-image-models>=0.3", "onnxruntime>=1.18"]
+# O pin de opencv aqui NAO e redundante: o `rapidocr` declara
+# `opencv-python-headless` sem versao, e foi por essa porta que o OpenCV 5.0
+# entrou num parque de cameras e quebrou a decodificacao RTSP. Instalar o
+# rapidocr solto reabre o buraco.
+lpr = ["rapidocr>=3.0", "onnxruntime>=1.18", "opencv-python-headless>=4.9,<5"]
+lpr-trocr = ["transformers>=4.44", "torch>=2.2", "pillow>=10.0"]
+lpr-fastplate = ["fast-plate-ocr>=1.0", "open-image-models>=0.3"]
 gpu = ["onnxruntime-gpu>=1.18"]
 dev = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.11"]
 

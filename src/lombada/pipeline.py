@@ -21,7 +21,14 @@ from .config import AppConfig, CameraConfig
 from .detect import VehicleDetector, build_detector
 from .evidence import EvidenceWriter, draw_overview
 from .geometry import CalibrationError, contact_point, image_to_world
-from .lpr import PlateReader, build_reader, crop_bbox, is_plausible, vote_plates
+from .lpr import (
+    PlateReader,
+    agreement,
+    build_reader,
+    crop_bbox,
+    is_plausible,
+    vote_plates,
+)
 from .models import BBox, Passage, PlateRead, Track, TrackSample
 from .speed import SpeedError, apply_legal_tolerance, fit_speed
 from .storage import PassageStore
@@ -212,6 +219,7 @@ class CameraPipeline:
         if not is_violation and not self.config.storage.store_non_violations:
             return
 
+        plate, plate_quality = self._read_plate(pending)
         passage = Passage(
             camera_id=self.camera.id,
             track_id=track_id,
@@ -220,7 +228,7 @@ class CameraPipeline:
             considered_kmh=considered,
             limit_kmh=self.camera.limit_kmh,
             label=pending.track.label,
-            plate=self._read_plate(pending),
+            plate=plate,
             quality={
                 "r2": round(estimate.r2, 4),
                 "modelo": estimate.model,
@@ -229,6 +237,7 @@ class CameraPipeline:
                 "extrapolado_m": round(estimate.extrapolated_m, 3),
                 "dt_s": round(estimate.dt, 4),
                 "sentido_invertido": estimate.reversed_direction,
+                "lpr": plate_quality,
             },
         )
 
@@ -254,22 +263,50 @@ class CameraPipeline:
             estimate.r2,
         )
 
-    def _read_plate(self, pending: _Pending) -> PlateRead | None:
+    def _read_plate(self, pending: _Pending) -> tuple[PlateRead | None, dict[str, Any]]:
+        """Le a placa da passagem e devolve a leitura mais os sinais de qualidade.
+
+        Cada recorte guardado passa por TODOS os motores, entao a votacao final
+        cruza quadros e motores de uma vez so.
+        """
         reads: list[PlateRead] = []
         for _area, crop in pending.crops:
             try:
-                read = self.reader.read(crop)
+                reads.extend(self.reader.read_all(crop))
             except Exception:
                 logger.exception("%s: erro no LPR", self.camera.id)
-                continue
-            if read is not None:
-                reads.append(read)
+
         if not reads:
-            return None
+            return None, {"leituras": 0}
+
+        concordancia = agreement(reads)
+        quality = {
+            "leituras": len(reads),
+            "motores": sorted({r.source for r in reads if r.source}),
+            "concordancia": round(concordancia, 3),
+        }
+
         voted = vote_plates(reads)
-        if voted and not is_plausible(voted.text):
+        if voted is None:
+            return None, quality
+        if not is_plausible(voted.text):
             logger.debug("%s: placa fora de formato: %s", self.camera.id, voted.text)
-        return voted
+            quality["formato_invalido"] = True
+
+        minimo = self.config.lpr.min_agreement
+        if minimo > 0 and concordancia < minimo:
+            # Motores discordando entre si e o sinal mais honesto de leitura
+            # ruim -- mais do que a confianca que cada modelo declara de si.
+            logger.debug(
+                "%s: placa descartada por concordancia %.2f < %.2f",
+                self.camera.id,
+                concordancia,
+                minimo,
+            )
+            quality["descartada_por_concordancia"] = True
+            return None, quality
+
+        return voted, quality
 
 
 def run_all(config: AppConfig, stop: threading.Event) -> list[CameraPipeline]:

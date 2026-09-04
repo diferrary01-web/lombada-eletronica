@@ -18,12 +18,32 @@ detector:
 
 lpr:
   enabled: true
-  backend: fast_plate_ocr     # fast_plate_ocr | stub
-  detector_model: yolo-v9-t-256-license-plate-end2end
-  recognizer_model: global-plates-mobile-vit-v2-model
+  # ENSEMBLE ordenado. O PRIMEIRO motor precisa saber localizar a placa: e a
+  # caixa dele que vira o recorte passado aos demais. Os seguintes so releem
+  # esse recorte.
+  #
+  # Motores: rapidocr (PP-OCR/ONNX, localiza e le)
+  #          trocr    (seq2seq, so le -- precisa de um primario na frente)
+  #          fast_plate_ocr (especialista em placa, localiza e le)
+  #          stub     (nao le nada)
+  #
+  # O padrao junta um CTC com um seq2seq de proposito: eles erram em
+  # situacoes diferentes, e e disso que a votacao tira proveito.
+  engines: [rapidocr, trocr]
+  engine_weights:
+    rapidocr: 1.0
+    trocr: 0.8
   device: cuda:0
   min_confidence: 0.45
   frames_per_passage: 6       # quantos recortes vao para a votacao de placa
+  # Fracao minima de motores DISTINTOS que precisam concordar para a placa ser
+  # gravada. 0 desliga. Suba para 1.0 e so entra placa em que todo motor
+  # concordou -- menos placas lidas, quase nenhuma errada.
+  min_agreement: 0.0
+  trocr_model: microsoft/trocr-small-printed
+  # Usados so pelo motor fast_plate_ocr:
+  detector_model: yolo-v9-t-256-license-plate-end2end
+  recognizer_model: global-plates-mobile-vit-v2-model
 
 storage:
   database_path: data/lombada.db

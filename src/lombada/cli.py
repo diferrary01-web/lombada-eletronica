@@ -98,12 +98,16 @@ def cmd_check(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     print(f"local: {config.site_name} ({config.timezone})")
     print(f"detector: {config.detector.backend} / {config.detector.model}")
-    lpr = (
-        f"{config.lpr.backend} / {config.lpr.recognizer_model}"
-        if config.lpr.enabled
-        else "desligado"
-    )
-    print(f"lpr: {lpr}")
+    if config.lpr.enabled:
+        motores = ", ".join(
+            f"{name} (peso {config.lpr.weight_of(name):.2f})"
+            for name in config.lpr.engines
+        )
+        print(f"lpr: ensemble de {len(config.lpr.engines)} -- {motores}")
+        if config.lpr.min_agreement > 0:
+            print(f"     concordancia minima: {config.lpr.min_agreement:.2f}")
+    else:
+        print("lpr: desligado")
     print(
         f"banco: {config.storage.database_path}  "
         f"retencao: {config.storage.retention_days} dias"

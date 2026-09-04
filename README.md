@@ -66,18 +66,23 @@ Ambos têm teste de regressão.
 ## Instalação
 
 ```bash
-pip install -e ".[video,detect,lpr,dev]"
+pip install -e ".[video,detect,lpr,lpr-trocr,dev]"
 ```
 
 O núcleo — geometria, velocidade, votação de placa, configuração, banco — depende
 só de `numpy` e `PyYAML`. Cada peça pesada é um extra, de modo que a suíte de
 testes roda sem GPU e sem baixar modelo.
 
-Com GPU NVIDIA, troque `onnxruntime` por `onnxruntime-gpu`:
+Com GPU NVIDIA, some `gpu` (troca `onnxruntime` por `onnxruntime-gpu`):
 
 ```bash
-pip install -e ".[video,detect,lpr,gpu]"
+pip install -e ".[video,detect,lpr,lpr-trocr,gpu]"
 ```
+
+> **Não instale o `rapidocr` solto.** Ele declara `opencv-python-headless` sem
+> fixar versão, e foi por essa porta que o OpenCV 5.0 entrou num parque de
+> câmeras e quebrou a decodificação RTSP inteira. O extra `[lpr]` repete o pin
+> `<5` de propósito.
 
 ## Uso
 
@@ -124,7 +129,7 @@ detect.py     detector de veículos plugável (ultralytics | stub)
 track.py      associação em dois estágios: IoU sobre a caixa prevista + portão
 geometry.py   homografia imagem -> plano da via
 speed.py      ajuste de Y(t) e velocidade média na base
-lpr.py        detecção/OCR de placa + votação posicional entre quadros
+lpr.py        ensemble de motores de OCR + votação posicional (quadros x motores)
 evidence.py   quadro anotado, recorte da placa, manifesto com SHA-256
 storage.py    SQLite, consultas e retenção
 pipeline.py   orquestração por câmera
@@ -137,11 +142,48 @@ rastreio perde ID em velocidade alta e o sistema deixa de pegar exatamente as
 passagens que deveria. O OCR roda uma vez por passagem, sobre os recortes já
 guardados, depois que o veículo saiu da base.
 
-A leitura de placa vota caractere a caractere entre os quadros da mesma passagem,
-ponderando pela confiança, e depois usa o formato (`LLLNNNN` antiga, `LLLNLNN`
-Mercosul) para desambiguar `O`/`0`, `I`/`1`, `S`/`5` nas posições cujo tipo o
-formato já determina. A quinta posição nunca é coagida: é ela que decide qual dos
-dois formatos é.
+## Leitura de placa: ensemble, não "o melhor modelo"
+
+O reconhecimento é um **ensemble de motores que erram diferente**, e a votação
+acontece em duas dimensões ao mesmo tempo:
+
+- entre **quadros** — a mesma placa aparece várias vezes na passagem;
+- entre **motores** — cada recorte passa por todos eles.
+
+O padrão junta um **CTC** e um **seq2seq com atenção**, que falham em coisas
+distintas (borrão, inclinação, sujeira, caractere colado). A interseção dos dois
+erros é bem menor que cada um isolado.
+
+| Motor | Papel | O que é |
+|---|---|---|
+| `rapidocr` | localiza **e** lê | PP-OCR sobre ONNX Runtime, dicionário de caracteres público |
+| `trocr` | só lê | `microsoft/trocr-small-printed`, decodificação por atenção |
+| `fast_plate_ocr` | localiza e lê | especialista em placa, disponível mas **fora do padrão** |
+
+`engines` é uma lista ordenada: o **primeiro precisa saber localizar**, porque é
+a caixa dele que vira o recorte entregue aos demais. TrOCR não localiza nada
+sozinho — sem um primário na frente, ele leria o veículo inteiro como uma linha
+de texto e devolveria ruído.
+
+Três detalhes que fazem o ensemble valer a pena de fato:
+
+1. **A massa de voto é normalizada por motor.** Cada motor contribui com o mesmo
+   total, independente de quantos quadros ele leu. Sem isso, o motor que
+   devolveu leitura em seis quadros afogaria o que devolveu em um, e a eleição
+   passaria a ser decidida por quem falou mais alto — que é exatamente o erro
+   sistemático que o ensemble existe para evitar.
+2. **`agreement` é um sinal separado da confiança.** Modelo confiante e errado é
+   comum; dois modelos independentes confiantes e errados no mesmo caractere é
+   raro. `min_agreement` permite exigir que uma fração dos motores concorde
+   antes de gravar a placa — menos placas lidas, quase nenhuma errada.
+3. **Um motor que explode não derruba a passagem.** Cada motor roda protegido; a
+   velocidade é medida de qualquer jeito, com ou sem placa.
+
+Depois da votação, o formato (`LLLNNNN` antiga, `LLLNLNN` Mercosul) desambigua
+`O`/`0`, `I`/`1`, `S`/`5` nas posições cujo tipo ele já determina. A quinta
+posição nunca é coagida: é ela que decide qual dos dois formatos é.
+
+O manifesto de evidência e o banco registram **quais motores leram** a placa.
 
 ## Evidência
 

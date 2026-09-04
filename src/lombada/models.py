@@ -41,9 +41,24 @@ class Track:
 
 @dataclass(frozen=True)
 class PlateRead:
+    """Uma leitura de placa, de um motor, sobre um recorte.
+
+    `source` diz qual motor leu e `weight` quanto o voto dele pesa. Os dois
+    existem porque a consolidacao e um ENSEMBLE: a mesma passagem rende varias
+    leituras, de motores diferentes e de quadros diferentes, e o voto precisa
+    saber distinguir "o PP-OCR e o TrOCR concordaram" de "o mesmo motor repetiu
+    o mesmo erro seis vezes".
+    """
+
     text: str
     confidence: float
     bbox: BBox | None = None
+    source: str = ""
+    weight: float = 1.0
+
+    @property
+    def vote_weight(self) -> float:
+        return max(self.confidence, 1e-6) * max(self.weight, 0.0)
 
 
 @dataclass

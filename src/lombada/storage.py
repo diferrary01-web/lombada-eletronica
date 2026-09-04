@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS passages (
     label         TEXT    NOT NULL,
     plate_text    TEXT,
     plate_conf    REAL,
+    plate_source  TEXT,
     quality_json  TEXT    NOT NULL DEFAULT '{}',
     evidence_json TEXT    NOT NULL DEFAULT '{}',
     created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -81,8 +82,8 @@ class PassageStore:
                 INSERT INTO passages (
                     camera_id, track_id, captured_at, speed_kmh, considered_kmh,
                     limit_kmh, is_violation, label, plate_text, plate_conf,
-                    quality_json, evidence_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    plate_source, quality_json, evidence_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     passage.camera_id,
@@ -95,6 +96,7 @@ class PassageStore:
                     passage.label,
                     passage.plate.text if passage.plate else None,
                     passage.plate.confidence if passage.plate else None,
+                    passage.plate.source if passage.plate else None,
                     json.dumps(passage.quality, ensure_ascii=False),
                     json.dumps(passage.evidence, ensure_ascii=False),
                 ),
@@ -178,8 +180,15 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     data["is_violation"] = bool(data["is_violation"])
     plate_text = data.pop("plate_text")
     plate_conf = data.pop("plate_conf")
+    plate_source = data.pop("plate_source", None)
     data["plate"] = (
-        PlateRead(text=plate_text, confidence=plate_conf or 0.0) if plate_text else None
+        PlateRead(
+            text=plate_text,
+            confidence=plate_conf or 0.0,
+            source=plate_source or "",
+        )
+        if plate_text
+        else None
     )
     return data
 

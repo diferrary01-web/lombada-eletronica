@@ -78,13 +78,31 @@ class DetectorConfig:
 
 @dataclass(frozen=True)
 class LprConfig:
+    """Leitura de placa.
+
+    `engines` e um ENSEMBLE ordenado: o primeiro motor precisa saber localizar
+    a placa (e ele que produz o recorte), e os demais releem esse mesmo
+    recorte. Dois motores que erram diferente valem mais que um motor bom
+    sozinho -- e por isso o padrao tem dois.
+    """
+
     enabled: bool = True
-    backend: str = "fast_plate_ocr"
-    detector_model: str = "yolo-v9-t-256-license-plate-end2end"
-    recognizer_model: str = "global-plates-mobile-vit-v2-model"
+    engines: tuple[str, ...] = ("rapidocr", "trocr")
+    engine_weights: dict[str, float] = field(default_factory=dict)
     device: str = "cuda:0"
     min_confidence: float = 0.45
     frames_per_passage: int = 6
+    # Fracao minima de motores distintos que precisam concordar para a placa
+    # ser gravada. 0 desliga o criterio.
+    min_agreement: float = 0.0
+    trocr_model: str = "microsoft/trocr-small-printed"
+    # Usados so pelo motor `fast_plate_ocr`, que nao entra no ensemble padrao.
+    detector_model: str = "yolo-v9-t-256-license-plate-end2end"
+    recognizer_model: str = "global-plates-mobile-vit-v2-model"
+
+    def weight_of(self, engine: str) -> float:
+        """Peso do voto de um motor. Ausente = 1,0."""
+        return float(self.engine_weights.get(engine, 1.0))
 
 
 @dataclass(frozen=True)
@@ -145,7 +163,7 @@ def load_config(path: str | Path) -> AppConfig:
         site_name=str(site.get("name", "sem-nome")),
         timezone=str(site.get("timezone", "America/Sao_Paulo")),
         detector=_build(DetectorConfig, raw.get("detector"), tuples={"classes"}),
-        lpr=_build(LprConfig, raw.get("lpr")),
+        lpr=_build(LprConfig, raw.get("lpr"), tuples={"engines"}),
         storage=_storage(raw.get("storage")),
         quality=_build(QualityConfig, raw.get("quality")),
         cameras=cameras,
