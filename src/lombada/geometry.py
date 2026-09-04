@@ -68,7 +68,7 @@ def compute_homography(
 
     a = np.zeros((8, 8), dtype=np.float64)
     b = np.zeros(8, dtype=np.float64)
-    for i, ((x, y), (u, v)) in enumerate(zip(src, dst)):
+    for i, ((x, y), (u, v)) in enumerate(zip(src, dst, strict=True)):
         a[2 * i] = (x, y, 1, 0, 0, 0, -u * x, -u * y)
         b[2 * i] = u
         a[2 * i + 1] = (0, 0, 0, x, y, 1, -v * x, -v * y)
