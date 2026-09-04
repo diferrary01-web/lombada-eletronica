@@ -1,0 +1,33 @@
+services:
+  lombada:
+    build: .
+    image: lombada-eletronica:local
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    command: ["run", "--config", "config/cameras.yaml"]
+    # Descomente com GPU NVIDIA disponivel (exige nvidia-container-toolkit e a
+    # imagem base CUDA indicada no Dockerfile).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Aplica a retencao uma vez por dia. Placa e dado pessoal: isto nao e
+  # faxina de disco, e obrigacao.
+  retencao:
+    image: lombada-eletronica:local
+    depends_on: [lombada]
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do lombada purge --config config/cameras.yaml; sleep 86400; done'

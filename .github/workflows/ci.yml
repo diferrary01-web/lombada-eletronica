@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # De proposito sem os extras de visao: a suite do nucleo tem que rodar
+      # sem GPU, sem opencv e sem baixar modelo. Se algum teste passar a
+      # precisar disso, e sinal de que o nucleo vazou para a borda.
+      - name: Instalar
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tipos
+        run: mypy
+        continue-on-error: true
+
+      - name: Testes
+        run: pytest --cov=lombada --cov-report=term-missing

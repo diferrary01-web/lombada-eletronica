@@ -1,0 +1,82 @@
+# Configuracao de exemplo. Copie para config/cameras.yaml e ajuste.
+#
+# Senhas NAO ficam aqui. Escreva ${NOME_DA_VARIAVEL} e defina no ambiente
+# (arquivo .env, secret do orquestrador, o que for). A carga falha se a
+# variavel nao existir -- e melhor nao subir do que subir sem credencial.
+
+site:
+  name: Condominio Exemplo
+  timezone: America/Sao_Paulo
+
+detector:
+  backend: ultralytics        # ultralytics | stub
+  model: yolo11n.pt
+  device: cuda:0              # cpu, se nao houver GPU
+  confidence: 0.35
+  imgsz: 640
+  classes: [car, motorcycle, bus, truck]
+
+lpr:
+  enabled: true
+  backend: fast_plate_ocr     # fast_plate_ocr | stub
+  detector_model: yolo-v9-t-256-license-plate-end2end
+  recognizer_model: global-plates-mobile-vit-v2-model
+  device: cuda:0
+  min_confidence: 0.45
+  frames_per_passage: 6       # quantos recortes vao para a votacao de placa
+
+storage:
+  database_path: data/lombada.db
+  evidence_dir: data/evidence
+  retention_days: 30          # placa e dado pessoal: nao guarde alem do preciso
+  store_non_violations: false # true so em calibracao/diagnostico
+
+quality:
+  min_samples: 4              # abaixo disso nao se ajusta parabola
+  min_r2: 0.90                # ajuste pior que isso nao vira medida
+  max_extrapolation_m: 2.0    # quanto da base pode ser extrapolado
+  max_speed_kmh: 250.0
+
+cameras:
+  - id: lombada-01
+    name: LOMBADA ELETRONICA 01
+    enabled: true
+    rtsp_url: "rtsp://admin:${CAM01_SENHA}@10.0.0.51:554/Streaming/Channels/101"
+    # Substream, quando existir de verdade: o gatilho decodifica menos pixel.
+    # CUIDADO: em algumas Dahua o `subtype=1` devolve o MAIN. Confira com
+    # ffprobe antes de confiar -- decodificar 5 MP "achando que e 640x360"
+    # come a GPU inteira sem aparecer como erro.
+    substream_url: "rtsp://admin:${CAM01_SENHA}@10.0.0.51:554/Streaming/Channels/102"
+    limit_kmh: 30
+    tolerance_kmh: 7
+    capture_fps: 12
+    base:
+      # Distancia REAL, medida em campo, entre as duas linhas transversais.
+      distance_m: 8.0
+      # Largura suposta da faixa. Nao precisa ser exata: ela escala apenas a
+      # coordenada lateral, e a velocidade so depende da longitudinal.
+      lane_width_m: 3.5
+      # Os 4 cantos da base, em pixels, NESTA ordem:
+      #   entrada-esquerda, entrada-direita, saida-direita, saida-esquerda
+      # Use `lombada snapshot --camera lombada-01` para pegar um quadro.
+      image_points:
+        - [320, 900]
+        - [1600, 900]
+        - [1180, 520]
+        - [740, 520]
+    schedule:
+      start: "18:00"
+      end: "06:00"
+
+  - id: lombada-02
+    name: LOMBADA ELETRONICA 02
+    enabled: false
+    rtsp_url: "rtsp://admin:${CAM02_SENHA}@10.0.0.52:554/cam/realmonitor?channel=1&subtype=0"
+    limit_kmh: 30
+    base:
+      distance_m: 8.0
+      image_points:
+        - [280, 940]
+        - [1640, 940]
+        - [1210, 540]
+        - [700, 540]
