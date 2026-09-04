@@ -10,6 +10,7 @@ import sys
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .config import AppConfig, ConfigError, load_config
@@ -73,6 +74,21 @@ def _parser() -> argparse.ArgumentParser:
     project.add_argument("x", type=float)
     project.add_argument("y", type=float)
     project.set_defaults(handler=cmd_project)
+
+    bench = sub.add_parser(
+        "bench", help="avalia o ensemble contra recortes reais com gabarito"
+    )
+    _add_config(bench)
+    bench.add_argument(
+        "--images", type=Path, required=True, help="diretorio com os recortes"
+    )
+    bench.add_argument(
+        "--labels", type=Path, help="CSV `arquivo,placa`; sem ele o gabarito e o nome"
+    )
+    bench.add_argument(
+        "--engines", help="lista separada por virgula, sobrepoe o YAML"
+    )
+    bench.set_defaults(handler=cmd_bench)
 
     report = sub.add_parser("report", help="resumo e ultimas passagens")
     _add_config(report)
@@ -187,6 +203,42 @@ def cmd_project(args: argparse.Namespace) -> int:
     if not -1.0 <= world_y <= camera.base.distance_m + 1.0:
         print("aviso: o ponto cai fora da base de medicao")
     return 0
+
+
+def cmd_bench(args: argparse.Namespace) -> int:
+    import dataclasses
+
+    from .bench import evaluate, format_report, load_samples
+    from .config import LprConfig
+    from .lpr import build_reader
+
+    # A bancada nao precisa de camera configurada: so de motores e imagens.
+    if args.config.is_file():
+        lpr = load_config(args.config).lpr
+    else:
+        lpr = LprConfig()
+        print(f"(sem {args.config}: usando os padroes de LPR)")
+
+    if args.engines:
+        nomes = tuple(e.strip() for e in args.engines.split(",") if e.strip())
+        lpr = dataclasses.replace(lpr, engines=nomes, enabled=True)
+
+    samples = load_samples(args.images, args.labels)
+    if not samples:
+        print(f"nenhuma amostra com gabarito em {args.images}", file=sys.stderr)
+        return 1
+
+    print(f"motores: {', '.join(lpr.engines)}")
+    print(f"amostras: {len(samples)}\n")
+    result = evaluate(build_reader(lpr), samples, _load_image)
+    print(format_report(result))
+    return 0
+
+
+def _load_image(path: Path) -> Any:
+    import cv2
+
+    return cv2.imread(str(path))
 
 
 def cmd_report(args: argparse.Namespace) -> int:
